@@ -1,0 +1,16 @@
+# secrets
+.env
+
+# python
+__pycache__/
+.venv/
+*.pyc
+
+# dbt
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+
+# local data cache
+data/
+*.parquet
