@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: nflverse
+    database: NFL_ANALYTICS
+    schema: RAW
+    tables:
+      - name: pbp
+      - name: player_stats
+      - name: rosters
+      - name: schedules
