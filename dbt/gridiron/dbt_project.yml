@@ -33,3 +33,5 @@ models:
   gridiron:
     staging:
       +materialized: view
+    marts:
+      +materialized: table

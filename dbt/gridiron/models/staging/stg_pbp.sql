@@ -47,6 +47,8 @@ select
     touchdown,
     first_down,
     fumble_lost,
-    penalty
+    fumbled_1_team,
+    penalty,
+    two_point_attempt
 
 from {{ source('nflverse', 'pbp') }}
