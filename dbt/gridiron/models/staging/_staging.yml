@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: stg_pbp
+    description: >
+      Thin staging over the nflverse play-by-play source, pruned to the columns
+      used downstream. One row per play.
+    columns:
+      - name: season_type
+        description: REG for regular season, POST for playoffs.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['REG', 'POST']
+
+  - name: stg_schedules
+    description: >
+      Thin staging over the nflverse schedules source, one row per game, with
+      gameday and gametime cast from the source's strings to date and time.
+    columns:
+      - name: game_type
+        description: REG, or the playoff round (WC, DIV, CON, SB).
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['REG', 'WC', 'DIV', 'CON', 'SB']

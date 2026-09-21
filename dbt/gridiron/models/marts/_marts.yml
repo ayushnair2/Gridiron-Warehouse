@@ -1,0 +1,84 @@
+version: 2
+
+models:
+  - name: fct_player_game
+    description: >
+      OFFENSIVE SKILL-POSITION player-game fact: one row per passer, rusher or
+      receiver per game. Defenders and offensive linemen are absent by
+      construction, since the grain is derived from the passer/rusher/receiver
+      ids on each play. Stats are null where a player did not fill that role.
+      Two-point conversions are excluded so counting stats match official totals.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - player_id
+              - game_id
+    columns:
+      - name: player_id
+        description: nflverse gsis id; joins to dim_player.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: game_id
+        description: nflverse game id.
+        tests:
+          - not_null
+      - name: team
+        description: Team the player was on for this game.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team
+
+  - name: fct_team_game
+    description: >
+      Offensive team-game fact: one row per possessing team per game, aggregated
+      over scrimmage plays only (pass and run). Defensive performance is out of
+      scope; a team's defensive game is its opponent's row.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - team
+              - game_id
+    columns:
+      - name: team
+        description: Possessing team code; joins to dim_team.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team
+      - name: game_id
+        description: nflverse game id.
+        tests:
+          - not_null
+
+  - name: dim_player
+    description: >
+      One row per player, carrying stable descriptive attributes from the
+      player's most recent roster season. Team is deliberately excluded because
+      it changes per season; the fact tables carry team per game.
+    columns:
+      - name: player_id
+        description: nflverse gsis id; primary key.
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_team
+    description: >
+      One row per team code appearing in the fact tables. nflverse back-applies
+      current codes to relocated franchises, so 2016-2024 yields 32 codes.
+    columns:
+      - name: team
+        description: Team code; primary key.
+        tests:
+          - unique
+          - not_null
