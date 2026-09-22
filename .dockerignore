@@ -1,0 +1,23 @@
+astro
+.git
+airflow_settings.yaml
+logs/
+.venv
+airflow.db
+airflow.cfg
+
+# secrets: never bake credentials into an image layer.
+# .env.airflow is injected at runtime via `astro dev start --env .env.airflow`,
+# which reads it from the host, so excluding it here does not affect the containers.
+.env
+.env.airflow
+
+# bind-mounted at runtime (see docker-compose.override.yml) so the scheduler runs
+# live code; baking a second copy only creates a stale shadow of the same files
+dbt/
+ingest/
+
+# not used by any Airflow container
+dashboard/
+docs/
+src/

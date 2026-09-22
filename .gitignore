@@ -14,3 +14,10 @@ dbt/dbt_packages/
 # local data cache
 data/
 *.parquet
+
+# airflow / astro local runtime
+.astro/
+airflow_settings.yaml
+
+# airflow env file (same secrets as .env, container key path)
+.env.airflow

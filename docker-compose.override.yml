@@ -1,0 +1,15 @@
+# Local dev mounts. Astro merges this with its generated compose file.
+# scheduler runs tasks (LocalExecutor); dag-processor parses DAG files, which
+# import from ingest; triggerer runs deferred work. All three need the code.
+x-gridiron-volumes: &gridiron-volumes
+  - ./ingest:/usr/local/airflow/ingest:rw
+  - ./dbt/gridiron:/usr/local/airflow/dbt_project:rw
+  - ${HOME}/.snowflake/keys/nfl_rsa_key.p8:/usr/local/airflow/keys/nfl_rsa_key.p8:ro
+
+services:
+  scheduler:
+    volumes: *gridiron-volumes
+  dag-processor:
+    volumes: *gridiron-volumes
+  triggerer:
+    volumes: *gridiron-volumes
