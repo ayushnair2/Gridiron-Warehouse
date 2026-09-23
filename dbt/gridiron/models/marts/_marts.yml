@@ -34,6 +34,28 @@ models:
               arguments:
                 to: ref('dim_team')
                 field: team
+      # null where the player did not fill that role; accepted_range ignores nulls
+      - name: passing_success_rate
+        description: Share of the player's pass plays that were successful.
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: rushing_success_rate
+        description: Share of the player's rush attempts that were successful.
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: receiving_success_rate
+        description: Share of the player's targets that were successful.
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
 
   - name: fct_team_game
     description: >
@@ -59,6 +81,13 @@ models:
         description: nflverse game id.
         tests:
           - not_null
+      - name: success_rate
+        description: Share of the team's scrimmage plays that were successful.
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
 
   - name: dim_player
     description: >
