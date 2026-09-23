@@ -64,8 +64,6 @@ downstream consumes a build that did not pass.
 
 ## Findings
 
-<!-- DRAFT: rewrite in own words -->
-
 **Early-season team EPA predicts late-season EPA, but weakly, and with strong
 regression to the mean.** Regressing each team-season's weeks 10+ EPA per play on
 its weeks 1–9 EPA per play (OLS, n = 288 team-seasons, 2016–2024 regular season):
@@ -87,8 +85,6 @@ through week 9 projects only 0.055 above average afterwards — about half of a 
 start is signal, half is noise. The confidence interval excludes 1.0.
 
 ## Engineering notes
-
-<!-- DRAFT: rewrite in own words -->
 
 **Ingest OOM in the container.** Loading nine seasons of play-by-play at once held
 the Polars frame, its pandas copy and the parquet chunks in memory simultaneously,
@@ -126,8 +122,6 @@ dropback, but completion percentage computed against it was wrong, and is now
 divided by `pass_attempts - sacks`.
 
 ## Known limitations
-
-<!-- DRAFT: rewrite in own words -->
 
 **The ingest is idempotent but not atomic.** A rerun always produces the same
 result, but a load that dies partway leaves `RAW.PBP` holding only the seasons
