@@ -3,7 +3,9 @@ import polars as pl
 from snowflake.connector.pandas_tools import write_pandas
 from db import connect
 
-SEASONS = list(range(2016, 2025))
+# through the current season, resolved at runtime so a weekly run picks up the season
+# in progress; nflreadpy rolls over on the Thursday after Labor Day (kickoff)
+SEASONS = list(range(2014, nfl.get_current_season() + 1))
 
 
 def write(conn, df, table_name, overwrite=True, **kwargs):
