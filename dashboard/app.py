@@ -73,26 +73,66 @@ with qb_tab:
     # nflverse pass_attempt is a pass-PLAY flag, so pass_attempts already counts sacks:
     # it is dropbacks, and epa/dropback needs no adjustment. official attempts, which
     # completion pct is measured against, are dropbacks minus sacks.
+    # NFL passer qualifier: 14 official attempts per team game, measured against the
+    # team a QB threw the most for, so a mid-season trade doesn't double his bar.
+    # grouped by player_id, not name: abbreviated names collide (two J.Daniels in 2026)
     qbs = query(f"""
+        with team_games as (
+            select team, count(*) as team_games
+            from NFL_ANALYTICS.ANALYTICS.FCT_TEAM_GAME
+            where season = {season} and season_type = 'REG'
+            group by team
+        ),
+        primary_team as (
+            select player_id, team
+            from NFL_ANALYTICS.ANALYTICS.FCT_PLAYER_GAME
+            where season = {season} and season_type = 'REG'
+            group by player_id, team
+            qualify row_number() over (
+                partition by player_id
+                order by sum(pass_attempts) - sum(sacks) desc, team
+            ) = 1
+        ),
+        passers as (
+            select
+                player_id,
+                max(player_name) as player_name,
+                sum(passing_epa) / sum(pass_attempts) as epa_per_dropback,
+                sum(cpoe * pass_attempts) / sum(pass_attempts) as cpoe,
+                sum(completions) / (sum(pass_attempts) - sum(sacks)) * 100 as completion_pct,
+                sum(pass_attempts) - sum(sacks) as attempts,
+                sum(pass_attempts) as dropbacks,
+                count(*) as games
+            from NFL_ANALYTICS.ANALYTICS.FCT_PLAYER_GAME
+            where season = {season} and season_type = 'REG'
+            group by player_id
+            having sum(pass_attempts) > 0
+        )
         select
-            player_name,
-            sum(passing_epa) / sum(pass_attempts) as epa_per_dropback,
-            sum(cpoe * pass_attempts) / sum(pass_attempts) as cpoe,
-            sum(completions) / (sum(pass_attempts) - sum(sacks)) * 100 as completion_pct,
-            sum(pass_attempts) - sum(sacks) as attempts,
-            sum(pass_attempts) as dropbacks,
-            count(*) as games
-        from NFL_ANALYTICS.ANALYTICS.FCT_PLAYER_GAME
-        where season = {season}
-          and season_type = 'REG'
-        group by player_name
-        having sum(pass_attempts) >= 200
-        order by epa_per_dropback desc
+            p.player_name, t.team, p.epa_per_dropback, p.cpoe, p.completion_pct,
+            p.attempts, p.dropbacks, p.games, g.team_games
+        from passers p
+        join primary_team t using (player_id)
+        join team_games g using (team)
+        where p.attempts >= 14 * g.team_games
+        order by p.epa_per_dropback desc
     """)
     st.dataframe(
-        qbs.round({"EPA_PER_DROPBACK": 3, "CPOE": 3, "COMPLETION_PCT": 1}),
+        qbs.drop(columns="TEAM_GAMES").round(
+            {"EPA_PER_DROPBACK": 3, "CPOE": 3, "COMPLETION_PCT": 1}
+        ),
         hide_index=True,
     )
+
+    # byes leave teams on different game counts mid-season, so the bar can be a range
+    lo, hi = qbs["TEAM_GAMES"].min(), qbs["TEAM_GAMES"].max()
+    if pd.isna(lo):
+        bar = "no qualifying passers yet"
+    elif lo == hi:
+        bar = f"{14 * lo} attempts through {lo} games"
+    else:
+        bar = f"{14 * lo}-{14 * hi} attempts through {lo}-{hi} games"
+    st.caption(f"Qualifier: 14 attempts per team game (NFL standard): {bar}.")
 
 with reg_tab:
     st.caption(
