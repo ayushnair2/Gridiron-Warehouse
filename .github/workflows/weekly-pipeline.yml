@@ -1,0 +1,59 @@
+name: Weekly pipeline
+
+on:
+  schedule:
+    # GitHub cron is UTC: 13:00 UTC Tuesday is 09:00 Toronto during EDT, 08:00 during EST
+    - cron: "0 13 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# one run at a time, same reason as max_active_runs=1: ingest overwrites whole
+# tables, so two runs would race on the same Snowflake tables
+concurrency:
+  group: weekly-pipeline
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SNOWFLAKE_ROLE: NFL_ENGINEER
+      SNOWFLAKE_WAREHOUSE: NFL_WH
+      SNOWFLAKE_DATABASE: NFL_ANALYTICS
+      SNOWFLAKE_SCHEMA: RAW
+      DBT_SCHEMA: ANALYTICS
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write Snowflake private key
+        env:
+          SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+        run: |
+          umask 077
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s\n' "$SNOWFLAKE_PRIVATE_KEY" > "$RUNNER_TEMP/keys/nfl_rsa_key.p8"
+
+      - name: Build image
+        run: docker build -t gridiron-airflow .
+
+      # runs as the runner's uid so it owns the checkout (dbt writes target/, logs/,
+      # dbt_packages/) and the 0600 key; group 0 keeps AIRFLOW_HOME writable.
+      # values are passed by name with -e, so none appear on the command line.
+      # airflow dags test exits 1 when the DagRun fails, which fails this step.
+      - name: Run DAG
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+        run: |
+          docker run --rm --user "$(id -u):0" -e HOME=/tmp -e USER=astro \
+            -v "$GITHUB_WORKSPACE/ingest:/usr/local/airflow/ingest" \
+            -v "$GITHUB_WORKSPACE/dbt/gridiron:/usr/local/airflow/dbt_project" \
+            -v "$RUNNER_TEMP/keys:/usr/local/airflow/keys:ro" \
+            -e SNOWFLAKE_ACCOUNT -e SNOWFLAKE_USER -e SNOWFLAKE_ROLE -e SNOWFLAKE_WAREHOUSE \
+            -e SNOWFLAKE_DATABASE -e SNOWFLAKE_SCHEMA -e DBT_SCHEMA \
+            -e SNOWFLAKE_PRIVATE_KEY_PATH=/usr/local/airflow/keys/nfl_rsa_key.p8 \
+            --entrypoint bash gridiron-airflow \
+            -c "airflow db migrate && airflow dags test gridiron_pipeline"
