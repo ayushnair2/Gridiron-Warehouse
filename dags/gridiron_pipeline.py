@@ -13,7 +13,7 @@ default_args = {
 
 with DAG(
     dag_id="gridiron_pipeline",
-    description="Weekly nflverse ELT: load raw, rebuild dbt models, run dbt tests",
+    description="Weekly nflverse ELT: load raw, then build and test dbt models",
     # Tuesday 09:00 — after Monday night games have settled into the nflverse feed
     schedule="0 9 * * 2",
     start_date=datetime(2024, 1, 1),
@@ -30,14 +30,11 @@ with DAG(
         bash_command="python /usr/local/airflow/ingest/load_raw.py",
     )
 
-    dbt_run = BashOperator(
-        task_id="dbt_run",
-        bash_command=f"cd {DBT_PROJECT_DIR} && dbt deps && dbt run",
+    # dbt build runs each model's tests before building its dependents, so a failed
+    # test skips everything downstream and those marts keep their last good version
+    dbt_build = BashOperator(
+        task_id="dbt_build",
+        bash_command=f"cd {DBT_PROJECT_DIR} && dbt deps && dbt build",
     )
 
-    dbt_test = BashOperator(
-        task_id="dbt_test",
-        bash_command=f"cd {DBT_PROJECT_DIR} && dbt test",
-    )
-
-    ingest >> dbt_run >> dbt_test
+    ingest >> dbt_build
